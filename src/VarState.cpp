@@ -54,6 +54,8 @@ const int* VarState::findVariable(const std::string& name) const {
 }
 
 void VarState::clear() {
-  scopes_.resize(1);
+  resetToGlobalScope();
   scopes_.front().clear();
 }
+
+void VarState::resetToGlobalScope() { scopes_.resize(1); }

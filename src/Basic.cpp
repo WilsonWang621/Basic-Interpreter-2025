@@ -78,6 +78,9 @@ int main() {
       auto parsedLine = parser.parseLine(tokens, line);
       std::unique_ptr<Statement> statement(parsedLine.fetchStatement());
       if (const auto lineNumber = parsedLine.getLine()) {
+        if (*lineNumber <= 0) {
+          throw BasicError("LINE NUMBER ERROR");
+        }
         if (statement) {
           program.addStmt(*lineNumber, statement.get());
           statement.release();

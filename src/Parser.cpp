@@ -1,7 +1,7 @@
 #include "Parser.hpp"
 
+#include <charconv>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -34,11 +34,7 @@ ParsedLine Parser::parseLine(TokenStream& tokens,
   // 检查是否有行号
   const Token* firstToken = tokens.peek();
   if (firstToken && firstToken->type == TokenType::NUMBER) {
-    const int lineNumber = parseLiteral(firstToken);
-    if (lineNumber <= 0) {
-      throw BasicError("LINE NUMBER ERROR");
-    }
-    result.setLine(lineNumber);
+    result.setLine(parseLiteral(firstToken));
     tokens.get();  // 消费行号token
 
     // 如果只有行号，表示删除该行
@@ -271,12 +267,7 @@ Statement* Parser::parseDedent(TokenStream& tokens,
 
 
 std::unique_ptr<Expression> Parser::parseExpression(TokenStream& tokens) const {
-  auto expression = parseExpression(tokens, 0);
-  const auto* next = tokens.peek();
-  if (next && next->type == TokenType::RIGHT_PAREN) {
-    throw BasicError("MISMATCHED PARENTHESIS");
-  }
-  return expression;
+  return parseExpression(tokens, 0);
 }
 
 std::unique_ptr<Expression> Parser::parseExpression(TokenStream& tokens,
@@ -296,7 +287,7 @@ std::unique_ptr<Expression> Parser::parseExpression(TokenStream& tokens,
     left = parseExpression(tokens, 0);
 
     if (tokens.empty() || tokens.get()->type != TokenType::RIGHT_PAREN) {
-      throw BasicError("MISMATCHED PARENTHESIS");
+      throw BasicError("SYNTAX ERROR");
     }
   } else {
     throw BasicError("SYNTAX ERROR");
@@ -360,19 +351,12 @@ int Parser::parseLiteral(const Token* token) const {
     throw BasicError("SYNTAX ERROR");
   }
 
-  try {
-    size_t pos;
-    int value = std::stoi(token->text, &pos);  //将字符串转换为整数
-
-    // 检查是否整个字符串都被解析
-    if (pos != token->text.length()) {
-      throw BasicError("SYNTAX ERROR");
-    }
-
-    return value;
-  } catch (const std::out_of_range&) {
-    throw BasicError("INT LITERAL OVERFLOW");
-  } catch (const std::invalid_argument&) {
+  int value;
+  const char* begin = token->text.data();
+  const char* end = begin + token->text.size();
+  const auto parsed = std::from_chars(begin, end, value);
+  if (parsed.ec != std::errc{} || parsed.ptr != end) {
     throw BasicError("SYNTAX ERROR");
   }
+  return value;
 }

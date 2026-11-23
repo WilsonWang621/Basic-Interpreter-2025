@@ -82,6 +82,7 @@ void Program::run() {
   programCounter_ = 0;
   programEnd_ = false;
   new_line = true;
+  vars_.resetToGlobalScope();
   auto lines = recorder_.getAllLines();      //得到所有lines构成的vector
    std::sort(lines.begin(), lines.end());     //按行号排序
   try {

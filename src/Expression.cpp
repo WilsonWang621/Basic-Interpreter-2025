@@ -26,6 +26,7 @@ CompoundExpression::~CompoundExpression() {
 }
 
 int CompoundExpression::evaluate(const VarState& state) const {
+  constexpr long long maxValue = std::numeric_limits<int>::max();
   const long long lhs = left_->evaluate(state);
   const long long rhs = right_->evaluate(state);
   long long result;
@@ -44,15 +45,16 @@ int CompoundExpression::evaluate(const VarState& state) const {
       if (rhs == 0) {
         throw BasicError("DIVIDE BY ZERO");
       }
-      result = lhs / rhs;
-      break;
+      if (lhs == std::numeric_limits<int>::min() && rhs == -1) {
+        throw BasicError("SYNTAX ERROR");
+      }
+      return static_cast<int>(lhs / rhs);
     default:
       throw BasicError("UNSUPPORTED OPERATOR");
   }
 
-  if (result < std::numeric_limits<int>::min() ||
-      result > std::numeric_limits<int>::max()) {
-    throw BasicError("SYNTAX ERROR");
-  }
-  return static_cast<int>(result);
+  // 加减乘按标程的 32 位结果回绕，避免有符号整数溢出。
+  constexpr long long range = maxValue - std::numeric_limits<int>::min() + 1;
+  const long long wrapped = static_cast<unsigned int>(result);
+  return static_cast<int>(wrapped > maxValue ? wrapped - range : wrapped);
 }
