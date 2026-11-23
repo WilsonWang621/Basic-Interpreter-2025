@@ -267,7 +267,12 @@ Statement* Parser::parseDedent(TokenStream& tokens,
 
 
 std::unique_ptr<Expression> Parser::parseExpression(TokenStream& tokens) const {
-  return parseExpression(tokens, 0);
+  auto expression = parseExpression(tokens, 0);
+  const auto* next = tokens.peek();
+  if (next && next->type == TokenType::RIGHT_PAREN) {
+    throw BasicError("MISMATCHED PARENTHESIS");
+  }
+  return expression;
 }
 
 std::unique_ptr<Expression> Parser::parseExpression(TokenStream& tokens,
@@ -287,7 +292,7 @@ std::unique_ptr<Expression> Parser::parseExpression(TokenStream& tokens,
     left = parseExpression(tokens, 0);
 
     if (tokens.empty() || tokens.get()->type != TokenType::RIGHT_PAREN) {
-      throw BasicError("SYNTAX ERROR");
+      throw BasicError("MISMATCHED PARENTHESIS");
     }
   } else {
     throw BasicError("SYNTAX ERROR");
@@ -355,6 +360,9 @@ int Parser::parseLiteral(const Token* token) const {
   const char* begin = token->text.data();
   const char* end = begin + token->text.size();
   const auto parsed = std::from_chars(begin, end, value);
+  if (parsed.ptr == end && parsed.ec == std::errc::result_out_of_range) {
+    throw BasicError("INT LITERAL OVERFLOW");
+  }
   if (parsed.ec != std::errc{} || parsed.ptr != end) {
     throw BasicError("SYNTAX ERROR");
   }
