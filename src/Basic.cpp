@@ -17,13 +17,19 @@ int main() {
     if (line.empty()) {
       continue;
     }
+    TokenStream tokens;
     try {
-      // TODO: The main function.
-      TokenStream tokens = lexer.tokenize(line);
+      tokens = lexer.tokenize(line);
+    } catch (const BasicError&) {
+      std::cout << "SYNTAX ERROR\n";
+      continue;
+    }
+
+    try {
       // 检查第一个 token 的类型
       const Token* firstToken = tokens.peek();   //cursor_ >= tokens_.size() 返回nullptr
       if (!firstToken) {
-        continue; // 空行，跳过
+        throw BasicError("SYNTAX ERROR");
       }
 
       // 如果是标识符，可能是解释器命令   没参数
