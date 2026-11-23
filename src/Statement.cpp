@@ -1,7 +1,6 @@
 #include "Statement.hpp"
 
 #include <iostream>
-#include <limits>
 #include <sstream>
 #include <utility>
 
@@ -43,30 +42,22 @@ void PrintStatement::execute(VarState& state, Program& program) const {
 
  InputStatement::~InputStatement() = default;
 
-void InputStatement::execute(VarState& state, Program& program) const {
-  int value = 0;
-  std::string s;
-  std::cout << " ? ";
-  getline(std::cin, s);
-  // std::cout << s;
-  // std::cin >> value;
-  //没判断输入是否合法
-  // if (std::cin.fail()) {
-  //   std::cin.clear();
-  //   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  //   throw BasicError("INVALID NUMBER");
-  //   std::cout << std::endl;
-  //   std::cout << " ? ";
-  // }
-  while (!InputStatement::IsValid(s, value)) {
-    value = 0;
-    s.clear();
-    std::cout << "INVALID NUMBER" << std::endl;
+void InputStatement::execute(VarState& state, Program&) const {
+  std::string line;
+  for (;;) {
     std::cout << " ? ";
-    getline(std::cin, s);
+    if (!std::getline(std::cin, line)) {
+      return;
+    }
+
+    std::istringstream input(line);
+    int value;
+    if ((input >> value) && (input >> std::ws).eof()) {
+      state.setValue(varName_, value);
+      return;
+    }
+    std::cout << "INVALID NUMBER\n";
   }
-  // std::cout << value;
-  state.setValue(varName_, value);
 }
 
  GotoStatement::GotoStatement(const int line, std::string source) : Statement(std::move(source)), line_(line) {};

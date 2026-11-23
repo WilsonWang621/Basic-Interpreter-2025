@@ -53,4 +53,7 @@ const int* VarState::findVariable(const std::string& name) const {
   return nullptr;
 }
 
-void VarState::clear() { scopes_.clear(); }
+void VarState::clear() {
+  scopes_.resize(1);
+  scopes_.front().clear();
+}

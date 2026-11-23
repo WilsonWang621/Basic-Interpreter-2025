@@ -1,5 +1,7 @@
 #include "Expression.hpp"
 
+#include <limits>
+
 #include "VarState.hpp"
 #include "utils/Error.hpp"
 
@@ -24,22 +26,33 @@ CompoundExpression::~CompoundExpression() {
 }
 
 int CompoundExpression::evaluate(const VarState& state) const {
-  int lhs = left_->evaluate(state);
-  int rhs = right_->evaluate(state);
+  const long long lhs = left_->evaluate(state);
+  const long long rhs = right_->evaluate(state);
+  long long result;
 
   switch (op_) {
     case '+':
-      return lhs + rhs;
+      result = lhs + rhs;
+      break;
     case '-':
-      return lhs - rhs;
+      result = lhs - rhs;
+      break;
     case '*':
-      return lhs * rhs;
+      result = lhs * rhs;
+      break;
     case '/':
       if (rhs == 0) {
         throw BasicError("DIVIDE BY ZERO");
       }
-      return lhs / rhs;
+      result = lhs / rhs;
+      break;
     default:
       throw BasicError("UNSUPPORTED OPERATOR");
   }
+
+  if (result < std::numeric_limits<int>::min() ||
+      result > std::numeric_limits<int>::max()) {
+    throw BasicError("SYNTAX ERROR");
+  }
+  return static_cast<int>(result);
 }

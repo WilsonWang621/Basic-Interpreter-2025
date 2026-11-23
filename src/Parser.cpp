@@ -34,8 +34,11 @@ ParsedLine Parser::parseLine(TokenStream& tokens,
   // 检查是否有行号
   const Token* firstToken = tokens.peek();
   if (firstToken && firstToken->type == TokenType::NUMBER) {
-    // 解析行号
-    result.setLine(parseLiteral(firstToken));
+    const int lineNumber = parseLiteral(firstToken);
+    if (lineNumber <= 0) {
+      throw BasicError("LINE NUMBER ERROR");
+    }
+    result.setLine(lineNumber);
     tokens.get();  // 消费行号token
 
     // 如果只有行号，表示删除该行
@@ -103,27 +106,25 @@ Statement* Parser::parseLet(TokenStream& tokens,
   }
 
   auto expr = parseExpression(tokens);
-
-  // TODO: create a corresponding stmt and return it.
-  //有没有必要？
   if (!tokens.empty()) {
-    delete expr;
     throw BasicError("SYNTAX ERROR");
   }
 
-  return new LetStatement(varName, expr, originLine);
+  auto* statement = new LetStatement(varName, expr.get(), originLine);
+  expr.release();
+  return statement;
 }
 
 Statement* Parser::parsePrint(TokenStream& tokens,
                               const std::string& originLine) const {
   auto expr = parseExpression(tokens);
-  // TODO: create a corresponding stmt and return it.
   if (!tokens.empty()) {
-    delete expr;
     throw BasicError("SYNTAX ERROR");
   }
 
-  return new PrintStatement(originLine, expr);
+  auto* statement = new PrintStatement(originLine, expr.get());
+  expr.release();
+  return statement;
 }
 
 Statement* Parser::parseInput(TokenStream& tokens,
@@ -213,14 +214,15 @@ Statement* Parser::parseIf(TokenStream& tokens,
 
   int targetLine = parseLiteral(lineToken);
 
-  // TODO: create a corresponding stmt and return it.
   if (!tokens.empty()) {
-    delete leftExpr;
-    delete rightExpr;
     throw BasicError("SYNTAX ERROR");
   }
 
-  return new IFStatement(targetLine, originLine, leftExpr, rightExpr, op);;
+  auto* statement =
+      new IFStatement(targetLine, originLine, leftExpr.get(), rightExpr.get(), op);
+  leftExpr.release();
+  rightExpr.release();
+  return statement;
 }
 
 Statement* Parser::parseRem(TokenStream& tokens,
@@ -232,7 +234,6 @@ Statement* Parser::parseRem(TokenStream& tokens,
   // TODO: create a corresponding stmt and return it.
   std::string comment = remInfo->text;
   if (!tokens.empty()) {
-    delete remInfo;
     throw BasicError("SYNTAX ERROR");
   }
 
@@ -269,55 +270,40 @@ Statement* Parser::parseDedent(TokenStream& tokens,
 }
 
 
-Expression* Parser::parseExpression(TokenStream& tokens) const {
-  return parseExpression(tokens, 0);
+std::unique_ptr<Expression> Parser::parseExpression(TokenStream& tokens) const {
+  auto expression = parseExpression(tokens, 0);
+  const auto* next = tokens.peek();
+  if (next && next->type == TokenType::RIGHT_PAREN) {
+    throw BasicError("MISMATCHED PARENTHESIS");
+  }
+  return expression;
 }
 
-Expression* Parser::parseExpression(TokenStream& tokens, int precedence) const {
+std::unique_ptr<Expression> Parser::parseExpression(TokenStream& tokens,
+                                                    int precedence) const {
   // 解析左操作数
-  Expression* left;
-
-  if (tokens.empty()) {
-    throw BasicError("SYNTAX ERROR");
-  }
-
+  std::unique_ptr<Expression> left;
   const Token* token = tokens.get();
   if (!token) {
     throw BasicError("SYNTAX ERROR");
   }
 
   if (token->type == TokenType::NUMBER) {
-    int value = parseLiteral(token);
-    left = new ConstExpression(value);
+    left = std::make_unique<ConstExpression>(parseLiteral(token));
   } else if (token->type == TokenType::IDENTIFIER) {
-    left = new VariableExpression(token->text);
+    left = std::make_unique<VariableExpression>(token->text);
   } else if (token->type == TokenType::LEFT_PAREN) {
-    ++leftParentCount;
     left = parseExpression(tokens, 0);
 
     if (tokens.empty() || tokens.get()->type != TokenType::RIGHT_PAREN) {
       throw BasicError("MISMATCHED PARENTHESIS");
     }
-    --leftParentCount;
   } else {
     throw BasicError("SYNTAX ERROR");
   }
 
   // 检查是否有运算符
-  while (!tokens.empty()) {
-    const Token* opToken = tokens.peek();
-    if (!opToken) {
-      break;
-    }
-
-    // 检查是否是右括号
-    if (opToken->type == TokenType::RIGHT_PAREN) {
-      if (leftParentCount == 0) {
-        throw BasicError("MISMATCHED PARENTHESIS");
-      }
-      break;
-    }
-
+  while (const auto* opToken = tokens.peek()) {
     // 检查是否是运算符
     int opPrecedence = getPrecedence(opToken->type);
     if (opPrecedence == -1 || opPrecedence < precedence) {
@@ -346,7 +332,11 @@ Expression* Parser::parseExpression(TokenStream& tokens, int precedence) const {
 
     // 解析右操作数，使用更高的优先级
     auto right = parseExpression(tokens, opPrecedence + 1);
-    left = new CompoundExpression(left, op, right);
+    auto expression =
+        std::make_unique<CompoundExpression>(left.get(), op, right.get());
+    left.release();
+    right.release();
+    left = std::move(expression);
   }
 
   return left;
@@ -376,7 +366,7 @@ int Parser::parseLiteral(const Token* token) const {
 
     // 检查是否整个字符串都被解析
     if (pos != token->text.length()) {
-      throw BasicError("INT LITERAL OVERFLOW");
+      throw BasicError("SYNTAX ERROR");
     }
 
     return value;

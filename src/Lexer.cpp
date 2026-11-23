@@ -1,5 +1,6 @@
 #include "Lexer.hpp"
 
+#include <cctype>
 #include <limits>
 #include <string>
 #include <unordered_map>
@@ -28,7 +29,7 @@ TokenStream Lexer::tokenize(const std::string& line) const {
   int column = 0;
   while (column < line.size()) {
     char ch = line[column];
-    if (std::isspace(static_cast<int>(ch))) {
+    if (std::isspace(static_cast<unsigned char>(ch))) {
       ++column;
       continue;
     }

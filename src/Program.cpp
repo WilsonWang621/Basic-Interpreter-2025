@@ -80,19 +80,21 @@ void Program::resetAfterRun() noexcept {
 void Program::run() {
    // 按行号升序执行程序，支持 GOTO/IF 改变 PC。
   programCounter_ = 0;
-  auto lines = recorder_.getAllLines();
-   std::sort(lines.begin(), lines.end());
+  programEnd_ = false;
+  new_line = true;
+  auto lines = recorder_.getAllLines();      //得到所有lines构成的vector
+   std::sort(lines.begin(), lines.end());     //按行号排序
   try {
     while (!programEnd_ && programCounter_ < static_cast<int>(lines.size())) {
       const int currentLine = lines[programCounter_];
-      if (const auto stmt = recorder_.get(currentLine)) {
+      if (const auto stmt = recorder_.get(currentLine)) {    //当前行号对应的statement
         execute(stmt);
         // std::cout << "execute";
         if (!programEnd_ && new_line) {
           // std::cout << "plus" << std::endl;
           programCounter_++;
         }
-        new_line = true;
+        new_line = true;       //是否自增 在goto和if语句中置false
       }
 
     }
